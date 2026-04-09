@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AM Tracker App - Presentation Mockup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-body: #0f172a;
+            --bg-screen: #0f172a;
+            --bg-card: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.5);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            
+            --font-main: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: var(--font-main);
+            user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .presentation-layout {
+            display: flex;
+            gap: 60px;
+            align-items: center;
+            max-width: 1200px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        /* Presentation Info */
+        .info-panel {
+            flex: 1;
+            animation: slideInLeft 0.8s ease-out forwards;
+        }
+        
+        .info-panel h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, #a5b4fc, #818cf8, #6366f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .info-panel p {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .btn-control {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--border-color);
+            padding: 16px 24px;
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-control i {
+            font-size: 1.4rem;
+            color: var(--text-muted);
+            transition: color 0.3s;
+        }
+
+        .btn-control:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-control.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-control.active i {
+            color: #fff;
+        }
+
+        /* Mobile Device Mockup */
+        .device-mockup {
+            width: 375px;
+            height: 812px;
+            background: #000;
+            border-radius: 50px;
+            padding: 12px;
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                inset 0 0 0 2px #475569,
+                inset 0 0 0 6px #000;
+            position: relative;
+            animation: float 6s ease-in-out infinite;
+        }
+
+        /* Dynamic Island */
+        .dynamic-island {
+            position: absolute;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 35px;
+            background: #000;
+            border-radius: 20px;
+            z-index: 100;
+        }
+
+        .screen-container {
+            width: 100%;
+            height: 100%;
+            background: var(--bg-screen);
+            border-radius: 38px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            transform: scale(0.98);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .screen.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+
+        /* App Header */
+        .app-header {
+            padding: 60px 20px 20px;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        .app-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* App Content */
+        .app-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            scrollbar-width: none;
+        }
+        .app-content::-webkit-scrollbar { display: none; }
+
+        /* Shared UI Elements */
+        .card {
+            background: var(--bg-card);
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--success), #16a34a);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        /* Dashboard Screen */
+        .schedule-item {
+            display: flex;
+            gap: 14px;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: 14px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 12px;
+        }
+
+        .store-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: rgba(99, 102, 241, 0.15);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .store-info h3 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+        .store-info p { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px; }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+        }
+        .badge.done {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--success);
+        }
+
+        /* Check-in Screen */
+        .map-mock {
+            height: 200px;
+            background: url("https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800") center/cover;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .map-pin {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--primary);
+            font-size: 2rem;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+            animation: bounce 2s infinite;
+        }
+
+        .gps-status {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .gps-icon { color: var(--success); font-size: 1.5rem; }
+
+        .photo-mock {
+            height: 200px;
+            border: 2px dashed var(--border-color);
+            border-radius: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: var(--text-secondary);
+            margin-bottom: 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .photo-mock.has-photo {
+            border: 2px solid var(--success);
+            background: url("https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&q=80&w=800") center/cover;
+            color: transparent;
+        }
+
+        /* SOP Screen */
+        .score-card {
+            text-align: center;
+        }
+        .score-val {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--success);
+            margin-bottom: 10px;
+        }
+        .score-pills {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+        }
+        .score-pill {
+            width: 25px;
+            height: 25px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+        }
+        .score-pill.active {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .sop-item {
+            padding: 14px;
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: border-color 0.3s;
+        }
+        .sop-item.checked {
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+        .check-box {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            border: 2px solid var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .sop-item.checked .check-box {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        .sop-item.checked .check-box i { color: white; font-size: 0.8rem; }
+        .sop-item h4 { font-size: 0.9rem; font-weight: 500; flex: 1; }
+        .sop-item.checked h4 { color: var(--text-primary); }
+
+        /* Animations */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-50px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translate(-50%, -50%); }
+            50% { transform: translate(-50%, -70%); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="presentation-layout">
+        <div class="info-panel">
+            <h1>AM Tracker App</h1>
+            <p>Interactive prototype showcasing the core functionalities of the Area Manager Activity Tracking application. Select a screen below to view its design.</p>
+            
+            <div class="controls">
+                <button class="btn-control active" onclick="showScreen('home')">
+                    <i class="fa-solid fa-house"></i>
+                    Schedule Dashboard
+                </button>
+                <button class="btn-control" onclick="showScreen('checkin')">
+                    <i class="fa-solid fa-location-dot"></i>
+                    GPS Check-in Screen
+                </button>
+                <button class="btn-control" onclick="showScreen('sop')">
+                    <i class="fa-solid fa-list-check"></i>
+                    SOP Checklist Screen
+                </button>
+            </div>
+        </div>
+
+        <div class="device-mockup">
+            <div class="dynamic-island"></div>
+            <div class="screen-container">
+                
+                <!-- HOME SCREEN -->
+                <div class="screen active" id="screen-home">
+                    <header class="app-header">
+                        <div class="app-title">Today's Schedule</div>
+                        <i class="fa-solid fa-bell text-muted"></i>
+                    </header>
+                    <div class="app-content">
+                        <!-- Date selector mock -->
+                        <div style="display: flex; gap: 10px; margin-bottom: 20px; overflow-x: hidden;">
+                            <div style="padding: 12px 16px; background: var(--primary); border-radius: 12px; text-align: center;">
+                                <div style="font-size: 0.7rem; color: rgba(255,255,255,0.7);">Mon</div>
+                                <div style="font-weight: 700;">12</div>
+                            </div>
+                            <div style="padding: 12px 16px; background: var(--bg-card); border-radius: 12px; text-align: center; border: 1px solid var(--border-color);">
+                                <div style="font-size: 0.7rem; color: var(--text-secondary);">Tue</div>
+                                <div>13</div>
+                            </div>
+                            <div style="padding: 12px 16px; background: var(--bg-card); border-radius: 12px; text-align: center; border: 1px solid var(--border-color);">
+                                <div style="font-size: 0.7rem; color: var(--text-secondary);">Wed</div>
+                                <div>14</div>
+                            </div>
+                        </div>
+
+                        <div class="schedule-item">
+                            <div class="store-icon"><i class="fa-solid fa-store"></i></div>
+                            <div class="store-info" style="flex:1;">
+                                <h3>Store Alpha - Downtown</h3>
+                                <p>09:00 AM - 11:00 AM</p>
+                                <span class="badge done">Completed</span>
+                            </div>
+                        </div>
+
+                        <div class="schedule-item" style="border-color: rgba(99,102,241,0.5); transform: scale(1.02); box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+                            <div class="store-icon"><i class="fa-solid fa-store"></i></div>
+                            <div class="store-info" style="flex:1;">
+                                <h3>Store Beta - Mall</h3>
+                                <p>12:00 PM - 02:00 PM</p>
+                                <span class="badge">In Progress</span>
+                            </div>
+                        </div>
+
+                        <div class="schedule-item">
+                            <div class="store-icon"><i class="fa-solid fa-store"></i></div>
+                            <div class="store-info" style="flex:1;">
+                                <h3>Store Gamma - Suburb</h3>
+                                <p>03:00 PM - 05:00 PM</p>
+                                <span class="badge" style="background: rgba(100,116,139,0.15); color: var(--text-muted);">Upcoming</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CHECK-IN SCREEN -->
+                <div class="screen" id="screen-checkin">
+                    <header class="app-header">
+                        <i class="fa-solid fa-arrow-left" onclick="showScreen('home')" style="cursor: pointer;"></i>
+                        <div class="app-title">Check In</div>
+                        <div style="width:16px;"></div> <!-- spacer -->
+                    </header>
+                    <div class="app-content">
+                        <div class="card" style="display: flex; gap: 14px;">
+                            <div class="store-icon" style="width: 40px; height: 40px; font-size: 1.2rem;"><i class="fa-solid fa-store"></i></div>
+                            <div>
+                                <h3 style="font-size: 1rem; font-weight: 600;">Store Beta - Mall</h3>
+                                <p style="font-size: 0.8rem; color: var(--text-secondary);">12:00 PM - 02:00 PM</p>
+                            </div>
+                        </div>
+
+                        <div class="map-mock">
+                            <i class="fa-solid fa-location-dot map-pin"></i>
+                        </div>
+
+                        <div class="card gps-status">
+                            <i class="fa-solid fa-crosshairs gps-icon"></i>
+                            <div>
+                                <h4 style="color: var(--success); font-weight: 600; font-size: 0.9rem;">Within geofence ✓</h4>
+                                <p style="font-size: 0.75rem; color: var(--text-secondary);">Distance: 4.2m (max 10m)</p>
+                            </div>
+                        </div>
+
+                        <h3 style="font-size: 1rem; margin-bottom: 10px;">📷 Photo Proof</h3>
+                        <div class="photo-mock" id="photo-mock" onclick="togglePhoto()">
+                            <i class="fa-solid fa-camera" style="font-size: 2rem; color: var(--primary);"></i>
+                            <p style="font-size: 0.9rem;">Tap to take photo</p>
+                        </div>
+
+                        <button class="btn-primary" onclick="alert('Checking in...')">
+                            <i class="fa-solid fa-circle-check"></i>
+                            Submit Check-in
+                        </button>
+                    </div>
+                </div>
+
+                <!-- SOP CHECKLIST SCREEN -->
+                <div class="screen" id="screen-sop">
+                    <header class="app-header">
+                        <i class="fa-solid fa-arrow-left" onclick="showScreen('checkin')" style="cursor: pointer;"></i>
+                        <div class="app-title">SOP Checklist</div>
+                        <i class="fa-solid fa-paper-plane" style="color: var(--success); cursor: pointer;"></i>
+                    </header>
+                    <div class="app-content">
+                        <div class="card" style="background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,85,247,0.08)); border-color: rgba(99,102,241,0.3);">
+                            <h3 style="font-size: 1rem; font-weight: 600;">Store Beta - Mall</h3>
+                            <p style="font-size: 0.8rem; color: var(--text-secondary);">SOP Audit Checklist</p>
+                        </div>
+
+                        <h3 style="font-size: 1rem; margin-bottom: 10px;">Overall Score</h3>
+                        <div class="card score-card">
+                            <div class="score-val">8</div>
+                            <div style="font-size: 0.9rem; color: var(--success);">Excellent 🌟</div>
+                            <div class="score-pills">
+                                <div class="score-pill">1</div>
+                                <div class="score-pill">2</div>
+                                <div class="score-pill">3</div>
+                                <div class="score-pill">4</div>
+                                <div class="score-pill">5</div>
+                                <div class="score-pill">6</div>
+                                <div class="score-pill">7</div>
+                                <div class="score-pill active">8</div>
+                                <div class="score-pill">9</div>
+                                <div class="score-pill">10</div>
+                            </div>
+                        </div>
+
+                        <h3 style="font-size: 1rem; margin-bottom: 10px;">Checklist Items</h3>
+                        
+                        <div class="sop-item checked" onclick="toggleSop(this)">
+                            <div class="check-box"><i class="fa-solid fa-check"></i></div>
+                            <h4>Store Cleanliness</h4>
+                            <div style="background: rgba(34,197,94,0.15); color: var(--success); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">8/10</div>
+                        </div>
+                        
+                        <div class="sop-item checked" onclick="toggleSop(this)">
+                            <div class="check-box"><i class="fa-solid fa-check"></i></div>
+                            <h4>Staff Grooming</h4>
+                            <div style="background: rgba(34,197,94,0.15); color: var(--success); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">9/10</div>
+                        </div>
+
+                        <div class="sop-item" onclick="toggleSop(this)">
+                            <div class="check-box"><i class="fa-solid fa-check" style="display:none;"></i></div>
+                            <h4 style="color: var(--text-secondary);">Product Display Setup</h4>
+                            <div style="background: rgba(245,158,11,0.15); color: var(--warning); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">6/10</div>
+                        </div>
+
+                        <div class="sop-item" onclick="toggleSop(this)" style="margin-bottom: 30px;">
+                            <div class="check-box"><i class="fa-solid fa-check" style="display:none;"></i></div>
+                            <h4 style="color: var(--text-secondary);">Inventory Check</h4>
+                            <div style="background: rgba(239,68,68,0.15); color: var(--danger); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;">3/10</div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showScreen(screenId) {
+            // Update buttons
+            document.querySelectorAll('.btn-control').forEach((btn, index) => {
+                btn.classList.remove('active');
+                if (
+                    (screenId === 'home' && index === 0) ||
+                    (screenId === 'checkin' && index === 1) ||
+                    (screenId === 'sop' && index === 2)
+                ) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Update screens
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById('screen-' + screenId).classList.add('active');
+        }
+
+        function togglePhoto() {
+            const mock = document.getElementById('photo-mock');
+            if (mock.classList.contains('has-photo')) {
+                mock.classList.remove('has-photo');
+                mock.innerHTML = '<i class="fa-solid fa-camera" style="font-size: 2rem; color: var(--primary);"></i><p style="font-size: 0.9rem;">Tap to take photo</p>';
+            } else {
+                mock.classList.add('has-photo');
+                mock.innerHTML = '';
+            }
+        }
+
+        function toggleSop(el) {
+            el.classList.toggle('checked');
+            const icon = el.querySelector('.fa-check');
+            const h4 = el.querySelector('h4');
+            
+            if (el.classList.contains('checked')) {
+                icon.style.display = 'block';
+                h4.style.color = 'var(--text-primary)';
+            } else {
+                icon.style.display = 'none';
+                h4.style.color = 'var(--text-secondary)';
+            }
+        }
+    </script>
+</body>
+</html>
