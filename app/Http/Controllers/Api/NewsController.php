@@ -5,18 +5,26 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class NewsController extends Controller
 {
+    private const NEWS_API_URL = 'https://newsapi.org/v2';
+
+    private function getApiKey(): string
+    {
+        return env('NEWS_API_KEY', '9f41b59aee8f41a59b69aa0f9cfd6321');
+    }
+
     /**
-     * Fetch trending food/fastfood news from Indonesian RSS feeds.
+     * Fetch trending food/fastfood news from NewsAPI.org.
      * Results are cached for 30 minutes.
      */
     public function index()
     {
         $news = Cache::remember('food_news_indonesia', 1800, function () {
-            return $this->scrapeNewsFeeds();
+            return $this->fetchNewsFromApi();
         });
 
         return response()->json([
@@ -32,7 +40,7 @@ class NewsController extends Controller
     {
         Cache::forget('food_news_indonesia');
         $news = Cache::remember('food_news_indonesia', 1800, function () {
-            return $this->scrapeNewsFeeds();
+            return $this->fetchNewsFromApi();
         });
 
         return response()->json([
@@ -41,271 +49,173 @@ class NewsController extends Controller
         ]);
     }
 
-    private function scrapeNewsFeeds(): array
+    /**
+     * Fetch news from NewsAPI.org using multiple queries for broader coverage.
+     */
+    private function fetchNewsFromApi(): array
     {
-        $feeds = [
-            [
-                'url' => 'https://www.detik.com/food/rss',
-                'source' => 'Detik Food',
-                'logo' => 'https://www.detik.com/favicon.ico',
-            ],
-            [
-                'url' => 'https://rss.kompas.com/food',
-                'source' => 'Kompas Food',
-                'logo' => 'https://www.kompas.com/favicon.ico',
-            ],
-            [
-                'url' => 'https://www.cnnindonesia.com/gaya-hidup/makanan/rss',
-                'source' => 'CNN Indonesia',
-                'logo' => 'https://www.cnnindonesia.com/favicon.ico',
-            ],
-        ];
-
         $allArticles = [];
 
-        foreach ($feeds as $feed) {
+        // Search queries for trending fastfood in Indonesia
+        $queries = [
+            'fastfood Indonesia trending',
+            'KFC McDonalds Burger King Indonesia',
+            'ayam goreng cepat saji Indonesia',
+            'restoran cepat saji promo Indonesia',
+            'Pizza Hut Domino tren makanan Indonesia',
+            'bisnis kuliner franchise F&B Indonesia',
+            'HokBen Richeese Factory promo Indonesia',
+            'kopi kekinian tren minuman Indonesia',
+            'Gofood Grabfood diskon restoran Indonesia',
+            'industri makanan minuman kuliner Indonesia',
+        ];
+
+        // Economics queries for Indonesia
+        $economicsQueries = [
+            'harga BBM naik Indonesia',
+            'kurs Rupiah dolar USD Indonesia',
+            'ekonomi Indonesia inflasi',
+        ];
+
+        // Fetch trending fastfood news
+        foreach ($queries as $query) {
             try {
-                $articles = $this->parseFeed($feed['url'], $feed['source'], $feed['logo']);
+                $articles = $this->searchNews($query);
                 $allArticles = array_merge($allArticles, $articles);
             } catch (\Exception $e) {
-                Log::warning("Failed to scrape RSS feed: {$feed['url']} — {$e->getMessage()}");
+                Log::warning("NewsAPI query failed: {$query} — {$e->getMessage()}");
             }
         }
 
-        // If RSS feeds fail, use fallback curated content
-        if (empty($allArticles)) {
-            $allArticles = $this->getFallbackNews();
+        // Fetch economics news
+        foreach ($economicsQueries as $query) {
+            try {
+                $articles = $this->searchNews($query, 5);
+                $allArticles = array_merge($allArticles, $articles);
+            } catch (\Exception $e) {
+                Log::warning("NewsAPI economics query failed: {$query} — {$e->getMessage()}");
+            }
+        }
+
+        // Also fetch top headlines from Indonesia
+        try {
+            $headlines = $this->getTopHeadlines();
+            $allArticles = array_merge($allArticles, $headlines);
+        } catch (\Exception $e) {
+            Log::warning("NewsAPI top headlines failed: {$e->getMessage()}");
+        }
+
+        // Remove duplicates by URL
+        $seen = [];
+        $unique = [];
+        foreach ($allArticles as $article) {
+            if (!isset($seen[$article['url']])) {
+                $seen[$article['url']] = true;
+                $unique[] = $article;
+            }
         }
 
         // Sort by published date descending
-        usort($allArticles, function ($a, $b) {
+        usort($unique, function ($a, $b) {
             return strtotime($b['published_at']) - strtotime($a['published_at']);
         });
 
         // Limit to 30 articles
-        return array_slice($allArticles, 0, 30);
+        return array_slice($unique, 0, 30);
     }
 
-    private function parseFeed(string $url, string $source, string $logo): array
+    /**
+     * Search news using the /everything endpoint.
+     */
+    private function searchNews(string $query, int $pageSize = 15): array
     {
-        $ctx = stream_context_create([
-            'http' => [
-                'timeout' => 10,
-                'user_agent' => 'AM-Tracker/1.0',
-            ],
-            'ssl' => [
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-            ],
+        $response = Http::timeout(15)->get(self::NEWS_API_URL . '/everything', [
+            'q' => $query,
+            'language' => 'id',
+            'sortBy' => 'publishedAt',
+            'pageSize' => $pageSize,
+            'apiKey' => $this->getApiKey(),
         ]);
 
-        $xml = @file_get_contents($url, false, $ctx);
-        if ($xml === false) {
-            throw new \Exception("Could not fetch feed from {$url}");
+        if (!$response->successful()) {
+            throw new \Exception("NewsAPI returned status {$response->status()}: {$response->body()}");
         }
 
-        // Suppress XML parsing warnings
-        libxml_use_internal_errors(true);
-        $feed = simplexml_load_string($xml);
-        if ($feed === false) {
-            throw new \Exception("Could not parse XML from {$url}");
+        $data = $response->json();
+
+        if (($data['status'] ?? '') !== 'ok') {
+            throw new \Exception("NewsAPI error: " . ($data['message'] ?? 'Unknown error'));
         }
 
-        $articles = [];
-        $items = $feed->channel->item ?? $feed->entry ?? [];
+        return $this->mapArticles($data['articles'] ?? []);
+    }
 
-        foreach ($items as $item) {
-            $title = (string) ($item->title ?? '');
-            $link = (string) ($item->link ?? '');
-            $description = strip_tags((string) ($item->description ?? ''));
-            $pubDate = (string) ($item->pubDate ?? $item->published ?? now()->toISOString());
+    /**
+     * Get top headlines from Indonesia.
+     */
+    private function getTopHeadlines(): array
+    {
+        $response = Http::timeout(15)->get(self::NEWS_API_URL . '/top-headlines', [
+            'country' => 'id',
+            'category' => 'general',
+            'pageSize' => 15,
+            'apiKey' => $this->getApiKey(),
+        ]);
 
-            // Try to extract image from enclosure, media:content, or description
-            $imageUrl = '';
-            if (isset($item->enclosure['url'])) {
-                $imageUrl = (string) $item->enclosure['url'];
-            }
-            if (empty($imageUrl)) {
-                $namespaces = $item->getNameSpaces(true);
-                if (isset($namespaces['media'])) {
-                    $media = $item->children($namespaces['media']);
-                    if (isset($media->content['url'])) {
-                        $imageUrl = (string) $media->content['url'];
-                    } elseif (isset($media->thumbnail['url'])) {
-                        $imageUrl = (string) $media->thumbnail['url'];
-                    }
-                }
-            }
-            if (empty($imageUrl)) {
-                // Try to extract from description HTML
-                $descHtml = (string) ($item->description ?? '');
-                if (preg_match('/<img[^>]+src=["\']([^"\']+)["\']/', $descHtml, $matches)) {
-                    $imageUrl = $matches[1];
-                }
+        if (!$response->successful()) {
+            throw new \Exception("NewsAPI headlines returned status {$response->status()}");
+        }
+
+        $data = $response->json();
+
+        if (($data['status'] ?? '') !== 'ok') {
+            throw new \Exception("NewsAPI headlines error: " . ($data['message'] ?? 'Unknown error'));
+        }
+
+        return $this->mapArticles($data['articles'] ?? []);
+    }
+
+    /**
+     * Map NewsAPI article format to our standard format.
+     */
+    private function mapArticles(array $articles): array
+    {
+        $mapped = [];
+
+        foreach ($articles as $article) {
+            $title = $article['title'] ?? '';
+            $url = $article['url'] ?? '';
+
+            // Skip removed articles
+            if (empty($title) || empty($url) || $title === '[Removed]') {
+                continue;
             }
 
-            // Truncate description
+            $description = $article['description'] ?? '';
             if (strlen($description) > 200) {
                 $description = substr($description, 0, 200) . '...';
             }
 
-            if (!empty($title) && !empty($link)) {
-                $articles[] = [
-                    'title' => html_entity_decode($title, ENT_QUOTES, 'UTF-8'),
-                    'description' => html_entity_decode($description, ENT_QUOTES, 'UTF-8'),
-                    'url' => $link,
-                    'image_url' => $imageUrl,
-                    'source' => $source,
-                    'source_logo' => $logo,
-                    'published_at' => date('c', strtotime($pubDate)),
-                ];
-            }
+            $sourceName = $article['source']['name'] ?? 'Unknown';
+            $imageUrl = $article['urlToImage'] ?? '';
+            $publishedAt = $article['publishedAt'] ?? now()->toISOString();
+
+            // Generate a source logo URL using Google's favicon service
+            $sourceDomain = parse_url($url, PHP_URL_HOST) ?? '';
+            $sourceLogo = $sourceDomain ? "https://www.google.com/s2/favicons?domain={$sourceDomain}&sz=64" : '';
+
+            $mapped[] = [
+                'title' => html_entity_decode($title, ENT_QUOTES, 'UTF-8'),
+                'description' => html_entity_decode($description, ENT_QUOTES, 'UTF-8'),
+                'url' => $url,
+                'image_url' => $imageUrl,
+                'source' => $sourceName,
+                'source_logo' => $sourceLogo,
+                'published_at' => date('c', strtotime($publishedAt)),
+            ];
         }
 
-        return $articles;
+        return $mapped;
     }
 
-    /**
-     * Fallback curated food/fastfood news when RSS feeds are not accessible.
-     */
-    private function getFallbackNews(): array
-    {
-        return [
-            [
-                'title' => 'Tren Makanan Cepat Saji di Indonesia Terus Meningkat',
-                'description' => 'Industri fastfood di Indonesia mengalami pertumbuhan signifikan dengan masuknya berbagai brand internasional dan inovasi menu lokal.',
-                'url' => 'https://food.detik.com/berita-boga/d-12345/tren-makanan-cepat-saji-di-indonesia-terus-meningkat',
-                'image_url' => '',
-                'source' => 'Detik Food',
-                'source_logo' => 'https://www.detik.com/favicon.ico',
-                'published_at' => now()->subHours(1)->toISOString(),
-            ],
-            [
-                'title' => 'Demam Fried Chicken Crispy Asal Korea Melanda Jakarta',
-                'description' => 'Ayam goreng renyah alias fried chicken bergaya Korea kini mendominasi pilihan fastfood, menggeser beberapa pemain lama.',
-                'url' => 'https://food.kompas.com/read/2026/03/12/12345/demam-fried-chicken-crispy-asal-korea-melanda-jakarta',
-                'image_url' => '',
-                'source' => 'Kompas Food',
-                'source_logo' => 'https://www.kompas.com/favicon.ico',
-                'published_at' => now()->subHours(2)->toISOString(),
-            ],
-            [
-                'title' => 'Smash Burger Jadi Tren Kuliner Paling Hits Minggu Ini',
-                'description' => 'Beberapa kedai lokal mulai menyajikan smash burger dengan patty super tipis dan garing, menjadi idola baru pecinta burger.',
-                'url' => 'https://www.cnnindonesia.com/gaya-hidup/20260312-smash-burger-jadi-tren-kuliner-paling-hits-minggu-ini',
-                'image_url' => '',
-                'source' => 'CNN Indonesia',
-                'source_logo' => 'https://www.cnnindonesia.com/favicon.ico',
-                'published_at' => now()->subHours(3)->toISOString(),
-            ],
-            [
-                'title' => 'Menu Ayam Geprek Modern Masih Jadi Favorit Gen Z',
-                'description' => 'Ayam geprek tetap menjadi salah satu menu favorit kekinian, kini hadir dengan topping lelehan keju mozzarella dan saus mentai.',
-                'url' => 'https://food.detik.com/berita-boga/d-67890/menu-ayam-geprek-modern-masih-jadi-favorit-gen-z',
-                'image_url' => '',
-                'source' => 'Detik Food',
-                'source_logo' => 'https://www.detik.com/favicon.ico',
-                'published_at' => now()->subHours(4)->toISOString(),
-            ],
-            [
-                'title' => 'Inovasi Menu Burger Nasi Curi Perhatian',
-                'description' => 'Menggabungkan cita rasa lokal, fastfood menghadirkan burger dengan "bun" yang terbuat dari nasi yang dipadatkan.',
-                'url' => 'https://food.kompas.com/read/2026/03/12/67890/inovasi-menu-burger-nasi-curi-perhatian',
-                'image_url' => '',
-                'source' => 'Kompas Food',
-                'source_logo' => 'https://www.kompas.com/favicon.ico',
-                'published_at' => now()->subHours(5)->toISOString(),
-            ],
-            [
-                'title' => 'Kelezatan Buttermilk Fried Chicken Lokal Makin Diakui',
-                'description' => 'Banyak gerai fastfood lokal yang kini berani mengadopsi resep buttermilk chicken ala Amerika dengan sentuhan rempah lokal.',
-                'url' => 'https://food.detik.com/berita-boga/d-11223/kelezatan-buttermilk-fried-chicken-lokal-makin-diakui',
-                'image_url' => '',
-                'source' => 'Detik Food',
-                'source_logo' => 'https://www.detik.com/favicon.ico',
-                'published_at' => now()->subHours(6)->toISOString(),
-            ],
-            [
-                'title' => 'Tren Saus Salted Egg Pada Menu Fastfood',
-                'description' => 'Saus telur asin atau salted egg kembali booming, kali ini disiramkan ke atas ayam goreng tepung crispy.',
-                'url' => 'https://www.cnnindonesia.com/gaya-hidup/20260312-tren-saus-salted-egg-pada-menu-fastfood',
-                'image_url' => '',
-                'source' => 'CNN Indonesia',
-                'source_logo' => 'https://www.cnnindonesia.com/favicon.ico',
-                'published_at' => now()->subHours(7)->toISOString(),
-            ],
-            [
-                'title' => 'Varian Plant-Based Burger Mulai Populer di Indonesia',
-                'description' => 'Merespon tren makanan sehat, sejumlah restoran cepat saji kini menghadirkan burger dengan patty berbahan dasar nabati.',
-                'url' => 'https://food.kompas.com/read/2026/03/12/11223/varian-plant-based-burger-mulai-populer-di-indonesia',
-                'image_url' => '',
-                'source' => 'Kompas Food',
-                'source_logo' => 'https://www.kompas.com/favicon.ico',
-                'published_at' => now()->subHours(8)->toISOString(),
-            ],
-            [
-                'title' => 'Ayam Bakar Madu Pedas Masuk Menu Fastfood Nusantara',
-                'description' => 'Kuliner ayam pedas dengan paduan madu yang disajikan cepat ala fastfood sukses menarik pelanggan di berbagai mall.',
-                'url' => 'https://food.detik.com/berita-boga/d-44556/ayam-bakar-madu-pedas-masuk-menu-fastfood-nusantara',
-                'image_url' => '',
-                'source' => 'Detik Food',
-                'source_logo' => 'https://www.detik.com/favicon.ico',
-                'published_at' => now()->subHours(9)->toISOString(),
-            ],
-            [
-                'title' => 'Demam Truffle Fries Sebagai Pendamping Burger',
-                'description' => 'Kentang goreng beraroma jamur truffle yang mewah kini sangat mudah ditemui di berbagai gerai burger lokal.',
-                'url' => 'https://www.cnnindonesia.com/gaya-hidup/20260312-demam-truffle-fries-sebagai-pendamping-burger',
-                'image_url' => '',
-                'source' => 'CNN Indonesia',
-                'source_logo' => 'https://www.cnnindonesia.com/favicon.ico',
-                'published_at' => now()->subHours(10)->toISOString(),
-            ],
-            [
-                'title' => 'Kuliner Kekinian: Burger Hitam Charcoal Masih Eksis',
-                'description' => 'Meski tren burger hitam sudah lama ada, tampilannya yang instagenic membuatnya tetap laris manis di kalangan pecinta kuliner.',
-                'url' => 'https://food.detik.com/berita-boga/d-77889/kuliner-kekinian-burger-hitam-charcoal-masih-eksis',
-                'image_url' => '',
-                'source' => 'Detik Food',
-                'source_logo' => 'https://www.detik.com/favicon.ico',
-                'published_at' => now()->subHours(11)->toISOString(),
-            ],
-            [
-                'title' => 'Perang Diskon Restoran Fried Chicken di Tanggal Kembar',
-                'description' => 'Banyak pelanggan berburu promo paket ayam goreng di hari belanja online yang turut dimeriahkan aplikasi layanan pesan antar.',
-                'url' => 'https://food.kompas.com/read/2026/03/12/44556/perang-diskon-restoran-fried-chicken-di-tanggal-kembar',
-                'image_url' => '',
-                'source' => 'Kompas Food',
-                'source_logo' => 'https://www.kompas.com/favicon.ico',
-                'published_at' => now()->subHours(12)->toISOString(),
-            ],
-            [
-                'title' => 'Sop Sayur Asam Pedas di Restoran Fastfood',
-                'description' => 'Mulai banyak gerai restoran ayam goren yang menghadirkan menu berkuah asam pedas untuk menetralisir rasa gurih.',
-                'url' => 'https://www.cnnindonesia.com/gaya-hidup/20260312-sop-sayur-asam-pedas-di-restoran-fastfood',
-                'image_url' => '',
-                'source' => 'CNN Indonesia',
-                'source_logo' => 'https://www.cnnindonesia.com/favicon.ico',
-                'published_at' => now()->subHours(13)->toISOString(),
-            ],
-            [
-                'title' => 'Korean Spicy Chicken Wing Laris Manis',
-                'description' => 'Ayam berbalut saus gochujang khas Korea semakin mudah ditemukan di sudut-sudut kota.',
-                'url' => 'https://food.detik.com/berita-boga/d-99001/korean-spicy-chicken-wing-laris-manis',
-                'image_url' => '',
-                'source' => 'Detik Food',
-                'source_logo' => 'https://www.detik.com/favicon.ico',
-                'published_at' => now()->subHours(14)->toISOString(),
-            ],
-            [
-                'title' => 'Inovasi Croissant Burger yang Sukses Viral',
-                'description' => 'Memadukan roti khas Prancis yang renyah berlapis dengan patty daging juicy menghasilkan paduan yang meleleh di mulut.',
-                'url' => 'https://food.kompas.com/read/2026/03/12/77889/inovasi-croissant-burger-yang-sukses-viral',
-                'image_url' => '',
-                'source' => 'Kompas Food',
-                'source_logo' => 'https://www.kompas.com/favicon.ico',
-                'published_at' => now()->subHours(15)->toISOString(),
-            ],
-        ];
-    }
 }

@@ -7,6 +7,7 @@ use App\Models\ActivityLog;
 use App\Models\Schedule;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class ScheduleController extends Controller
 {
@@ -23,8 +24,8 @@ class ScheduleController extends Controller
 
         // Filter by week (pass start date of week)
         if ($request->has('week')) {
-            $startOfWeek = Carbon::parse($request->week)->startOfWeek();
-            $endOfWeek = $startOfWeek->copy()->endOfWeek();
+            $startOfWeek = Carbon::parse($request->week)->startOfWeek(Carbon::MONDAY);
+            $endOfWeek   = $startOfWeek->copy()->endOfWeek(Carbon::SUNDAY);
             $query->forWeek($startOfWeek, $endOfWeek);
         }
 

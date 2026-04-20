@@ -72,10 +72,19 @@ class _NewsScreenState extends State<NewsScreen> {
   }
 
   Color _sourceColor(String source) {
+    // Known Indonesian sources
     if (source.contains('Detik')) return const Color(0xFF3b82f6);
     if (source.contains('Kompas')) return const Color(0xFFf59e0b);
     if (source.contains('CNN')) return const Color(0xFFef4444);
-    return const Color(0xFFC41230);
+    if (source.contains('Tempo')) return const Color(0xFF10b981);
+    if (source.contains('Liputan')) return const Color(0xFF8b5cf6);
+    if (source.contains('Tribun')) return const Color(0xFFf97316);
+    if (source.contains('CNBC')) return const Color(0xFF06b6d4);
+    if (source.contains('Antara')) return const Color(0xFF6366f1);
+    // Generate a consistent color based on source name hash
+    final hash = source.hashCode;
+    final hue = (hash % 360).abs().toDouble();
+    return HSLColor.fromAHSL(1.0, hue, 0.6, 0.45).toColor();
   }
 
   @override

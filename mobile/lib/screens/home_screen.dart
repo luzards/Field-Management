@@ -88,8 +88,8 @@ class _HomeScreenState extends State<HomeScreen> {
           selectedFontSize: 12,
           unselectedFontSize: 11,
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.today), label: 'Today'),
-            BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Week'),
+            BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
+            BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Schedule'),
             BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
             BottomNavigationBarItem(icon: Icon(Icons.newspaper), label: 'News'),
             BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
